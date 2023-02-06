@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+
 import 'package:flutter_webview_plugin/src/javascript_channel.dart';
 
 import 'base.dart';
@@ -13,32 +13,33 @@ class WebviewScaffold extends StatefulWidget {
     this.appBar,
     required this.url,
     this.headers,
-    this.javascriptChannels = const <JavascriptChannel>{},
-    this.withJavascript = true,
-    this.clearCache = false,
-    this.clearCookies = false,
+    this.javascriptChannels,
+    this.withJavascript,
+    this.clearCache,
+    this.clearCookies,
     this.mediaPlaybackRequiresUserGesture = true,
-    this.enableAppScheme = true,
+    this.enableAppScheme,
     this.userAgent,
     this.primary = true,
     this.persistentFooterButtons,
     this.bottomNavigationBar,
-    this.withZoom = false,
-    this.displayZoomControls = false,
-    this.withLocalStorage = true,
-    this.withLocalUrl = false,
+    this.withZoom,
+    this.displayZoomControls,
+    this.withLocalStorage,
+    this.withLocalUrl,
     this.localUrlScope,
-    this.withOverviewMode = false,
-    this.useWideViewPort = false,
-    this.scrollBar = true,
-    this.supportMultipleWindows = false,
-    this.appCacheEnabled = false,
+    this.withOverviewMode,
+    this.useWideViewPort,
+    this.scrollBar,
+    this.supportMultipleWindows,
+    this.appCacheEnabled,
     this.hidden = false,
+    this.onBackPress,
     this.initialChild,
-    this.allowFileURLs = false,
+    this.allowFileURLs,
     this.resizeToAvoidBottomInset = false,
     this.invalidUrlRegex,
-    this.geolocationEnabled = false,
+    this.geolocationEnabled,
     this.debuggingEnabled = false,
     this.ignoreSSLErrors = false,
   }) : super(key: key);
@@ -46,34 +47,35 @@ class WebviewScaffold extends StatefulWidget {
   final PreferredSizeWidget? appBar;
   final String url;
   final Map<String, String>? headers;
-  final Set<JavascriptChannel> javascriptChannels;
-  final bool withJavascript;
-  final bool clearCache;
-  final bool clearCookies;
-  final bool mediaPlaybackRequiresUserGesture;
-  final bool enableAppScheme;
+  final Set<JavascriptChannel>? javascriptChannels;
+  final bool? withJavascript;
+  final bool? clearCache;
+  final bool? clearCookies;
+  final bool? mediaPlaybackRequiresUserGesture;
+  final bool? enableAppScheme;
   final String? userAgent;
-  final bool primary;
+  final bool? primary;
+  final Function? onBackPress;
   final List<Widget>? persistentFooterButtons;
   final Widget? bottomNavigationBar;
-  final bool withZoom;
-  final bool displayZoomControls;
-  final bool withLocalStorage;
-  final bool withLocalUrl;
+  final bool? withZoom;
+  final bool? displayZoomControls;
+  final bool? withLocalStorage;
+  final bool? withLocalUrl;
   final String? localUrlScope;
-  final bool scrollBar;
-  final bool supportMultipleWindows;
-  final bool appCacheEnabled;
-  final bool hidden;
+  final bool? scrollBar;
+  final bool? supportMultipleWindows;
+  final bool? appCacheEnabled;
+  final bool? hidden;
   final Widget? initialChild;
-  final bool allowFileURLs;
-  final bool resizeToAvoidBottomInset;
+  final bool? allowFileURLs;
+  final bool? resizeToAvoidBottomInset;
   final String? invalidUrlRegex;
-  final bool geolocationEnabled;
-  final bool withOverviewMode;
-  final bool useWideViewPort;
-  final bool debuggingEnabled;
-  final bool ignoreSSLErrors;
+  final bool? geolocationEnabled;
+  final bool? withOverviewMode;
+  final bool? useWideViewPort;
+  final bool? debuggingEnabled;
+  final bool? ignoreSSLErrors;
 
   @override
   _WebviewScaffoldState createState() => _WebviewScaffoldState();
@@ -85,7 +87,9 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
   Timer? _resizeTimer;
   StreamSubscription<WebViewStateChanged>? _onStateChanged;
 
-  StreamSubscription? _onBack;
+  var _onBack;
+
+  bool get hidden => widget.hidden??false;
 
   @override
   void initState() {
@@ -96,21 +100,24 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
       if (!mounted) {
         return;
       }
-
-      // The willPop/pop pair here is equivalent to Navigator.maybePop(),
-      // which is what's called from the flutter back button handler.
-      final pop = await _topMostRoute.willPop();
-      if (pop == RoutePopDisposition.pop) {
-        // Close the webview if it's on the route at the top of the stack.
-        final isOnTopMostRoute = _topMostRoute == ModalRoute.of(context);
-        if (isOnTopMostRoute) {
-          webviewReference.close();
+      if (widget.onBackPress != null) {
+        widget.onBackPress!();
+      } else {
+        // The willPop/pop pair here is equivalent to Navigator.maybePop(),
+        // which is what's called from the flutter back button handler.
+        final pop = await _topMostRoute.willPop();
+        if (pop == RoutePopDisposition.pop) {
+          // Close the webview if it's on the route at the top of the stack.
+          final isOnTopMostRoute = _topMostRoute == ModalRoute.of(context);
+          if (isOnTopMostRoute) {
+            webviewReference.close();
+          }
+          Navigator.pop(context);
         }
-        Navigator.pop(context);
       }
     });
 
-    if (widget.hidden) {
+    if (hidden) {
       _onStateChanged =
           webviewReference.onStateChanged.listen((WebViewStateChanged state) {
         if (state.type == WebViewState.finishLoad) {
@@ -122,12 +129,12 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
 
   /// Equivalent to [Navigator.of(context)._history.last].
   Route<dynamic> get _topMostRoute {
-    Route? topMost;
+    var topMost;
     Navigator.popUntil(context, (route) {
       topMost = route;
       return true;
     });
-    return topMost!;
+    return topMost;
   }
 
   @override
@@ -136,7 +143,7 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
     _onBack?.cancel();
     _resizeTimer?.cancel();
     webviewReference.close();
-    if (widget.hidden) {
+    if (hidden) {
       _onStateChanged?.cancel();
     }
     webviewReference.dispose();
@@ -160,8 +167,7 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
               withJavascript: widget.withJavascript,
               clearCache: widget.clearCache,
               clearCookies: widget.clearCookies,
-              mediaPlaybackRequiresUserGesture:
-                  widget.mediaPlaybackRequiresUserGesture,
+              mediaPlaybackRequiresUserGesture: widget.mediaPlaybackRequiresUserGesture,
               hidden: widget.hidden,
               enableAppScheme: widget.enableAppScheme,
               userAgent: widget.userAgent,
@@ -188,13 +194,13 @@ class _WebviewScaffoldState extends State<WebviewScaffold> {
               _resizeTimer?.cancel();
               _resizeTimer = Timer(const Duration(milliseconds: 250), () {
                 // avoid resizing to fast when build is called multiple time
-                webviewReference.resize(_rect!);
+                webviewReference.resize(_rect);
               });
             }
           }
         },
         child: widget.initialChild ??
-            const Center(child: CircularProgressIndicator()),
+            const Center(child: const CircularProgressIndicator()),
       ),
     );
   }
@@ -233,7 +239,7 @@ class _WebviewPlaceholderRender extends RenderProxyBox {
   ValueChanged<Rect>? _callback;
   Rect? _rect;
 
-  Rect get rect => _rect!;
+  Rect? get rect => _rect;
 
   set onRectChanged(ValueChanged<Rect> callback) {
     if (callback != _callback) {

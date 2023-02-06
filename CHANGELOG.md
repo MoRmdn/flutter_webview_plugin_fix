@@ -1,5 +1,5 @@
-# 0.4.0 
-- migrated to null safety
+# 0.4.0+1
+-fix deprecated package
 
 # 0.3.10+1
 - fixed android build
